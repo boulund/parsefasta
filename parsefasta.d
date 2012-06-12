@@ -9,7 +9,7 @@ with FASTA objects.
 */
 
 import std.getopt; // Parse command line arguments
-import std.regex; // TODO: future implementation of grep-like regexp fetching of records
+import std.regex; // regexp retrieval of records
 import std.string; // chomp
 import std.file; // File handling
 import std.stdio; // writeln, writefln etc.
@@ -54,11 +54,54 @@ FastaStruct[] parseFasta(string filename)
 	return recordsFromFile;
 }
 
+void writeToFile(string fileOut, FastaStruct[] FastaRecords, string searchReg)
+{
+	/* Write all matched records to file */
+	auto headerReg = regex(searchReg);
+	File outFile = File(fileOut, "w");
+	foreach (FastaStruct record; FastaRecords)
+	{
+		auto m = match(record.header, headerReg);
+		if (m)
+		{
+			outFile.writeln(record.header);
+			outFile.writeln(record.sequence);
+		}
+	}
+}
+
+void printOut(FastaStruct[] FastaRecords, string searchReg)
+{
+	/* Print all matched records to stdout */
+	auto headerReg = regex(searchReg);
+	foreach (FastaStruct record; FastaRecords)
+	{
+		auto m = match(record.header, headerReg);
+		if (m)
+		{
+			writeln(record.header);
+			writeln(record.sequence);
+		}
+	}
+}
+
+void printHelp()
+{
+	writeln("Simple FASTA parser in D, Fredrik Boulund (c) 2012");
+	writeln("  usage: parsefasta [options] file.fasta");
+	writeln("Available options:\n"
+	  "  -o, --output FILENAME  write output to filename instead of stdout\n"
+	  "  -r, --retrieve REGEXP   use REGEXP to retrieve only matching records\n"
+	  "  -h, --help              show this friendly and helpful message\n"
+	  );
+}
 
 int main(string[] args)
 {
 	// Init variables
+	bool help;
 	string fileOut = "";
+	string searchReg ="";
 	File outFile;
 	File fastaFile;	
 	FastaStruct[] FastaRecords;
@@ -66,41 +109,45 @@ int main(string[] args)
 	/* Parse command line options and arguments */
 	if (args.length < 2)
 	{
-		writeln("usage: parsefasta [options] file.fasta");
-		writeln("Available options:\n  "
-		  "--fileout FILENAME  output filename\n  ");
+		printHelp();
 		return 0;
 	}
-	getopt(args, 
-		"fileout", &fileOut);
-	
+	try
+	{
+		getopt(args, 
+			"o", &fileOut,
+			"output", &fileOut,
+			"r", &searchReg,
+			"retrieve", &searchReg,
+			"h", &help,
+			"help", &help);
+
+		if (help) 
+		{
+			printHelp();
+			return 0;
+		}
+	}
+	catch (Exception e)
+	{
+		writefln("%s\nType -h or --help for help", e.msg);
+		return 1;
+	}
+
 	/+
 	writefln("args array is: %s", args);
 	writefln("fileout option is: %s", fileOut);
 	writefln("print option is: %s", print);
+	writefln("Input regexp is: \n%s", searchReg);
 	+/
 
 	/* Parse FASTA file */
 	FastaRecords = parseFasta(args[1]);
-	
+	/* Print or write output */
 	if (fileOut == "")
-	{
-		/* Print all parsed records */
-		foreach (FastaStruct record; FastaRecords)
-		{
-			writeln(record.header);
-			writeln(record.sequence);
-		}
-	}
+		printOut(FastaRecords, searchReg);
 	else
-	{
-		/* Write all parsed records to file */
-		outFile = File(fileOut, "w");
-		foreach (FastaStruct record; FastaRecords)
-		{
-			writeln(record.header);
-			writeln(record.sequence);
-		}
-	}
+		writeToFile(fileOut, FastaRecords, searchReg);
+
 	return 0;
 }
