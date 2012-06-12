@@ -6,6 +6,8 @@ Fredrik Boulund 2012-05-30
 any form of sanity checks or such. Just the simplest
 possible object oriented approach to a data structure
 with FASTA objects.
+ It can now retrieve records using regexp parsing of 
+header lines.
 */
 
 import std.getopt; // Parse command line arguments
