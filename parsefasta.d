@@ -6,61 +6,66 @@ Fredrik Boulund 2012-05-30
 any form of sanity checks or such. Just the simplest
 possible object oriented approach to a data structure
 with FASTA objects.
- It can now retrieve records using regexp parsing of 
+ It can retrieve records using regexp parsing of 
 header lines.
 */
 
 import std.getopt; // Parse command line arguments
 import std.regex; // regexp retrieval of records
 import std.string; // chomp
-import std.file; // File handling
+//import std.file; // File handling
+//import std.stream; // Stream handling
 import std.stdio; // writeln, writefln etc.
 
-/*
-  FastaStruct with two string fields
-*/
+
+/* FastaStruct with two string fields */
 struct FastaStruct
 {
 	string header = "";
 	string sequence = "";
 }
 
-
 /*
-  Simplest possible FASTA parser taking a filename,
-  returning an array of FastaStructs.
-  It is very stupid and performs no sanity checks
+  Implementation using io.stream to read file line by line instead.
+  Hope is to be able to read files larger than available memory
+  efficiently.
 */
 FastaStruct[] parseFasta(string filename)
 {
 	int recordcounter = 0;
+	string currentLine;
 	FastaStruct[] recordsFromFile; // Stores all fasta records
 
 	/* Open fastaFile for reading */
 	File fastaFile = File(filename, "r"); 
 	/* Read one line at a time */
-	foreach (string line; lines(fastaFile))
+	currentLine = fastaFile.readln();
+	while (!fastaFile.eof())
 	{
-		if (line[0] == '>')
+		if (currentLine[0] == '>')
 		{
 			recordsFromFile ~= FastaStruct("",""); // Append new record to array
 			recordcounter = cast(int)recordsFromFile.length;
-			recordsFromFile[recordcounter-1].header = chomp(line);
+			recordsFromFile[recordcounter-1].header = cast(string) chomp(currentLine);
 		}
 		else
 		{
-			recordsFromFile[recordcounter-1].sequence = recordsFromFile[recordcounter-1].sequence ~ chomp(line);
+			recordsFromFile[recordcounter-1].sequence = recordsFromFile[recordcounter-1].sequence ~ cast(string) chomp(currentLine);
 		}
+		currentLine = fastaFile.readln();
 	}
 
 	return recordsFromFile;
 }
 
+
+
+
 void writeToFile(string fileOut, FastaStruct[] FastaRecords, string searchReg)
 {
 	/* Write all matched records to file */
 	auto headerReg = regex(searchReg);
-	File outFile = File(fileOut, "w");
+	File outFile = File(fileOut);
 	foreach (FastaStruct record; FastaRecords)
 	{
 		auto m = match(record.header, headerReg);
@@ -103,9 +108,7 @@ int main(string[] args)
 	// Init variables
 	bool help;
 	string fileOut = "";
-	string searchReg ="";
-	File outFile;
-	File fastaFile;	
+	string searchReg = "";
 	FastaStruct[] FastaRecords;
 
 	/* Parse command line options and arguments */
@@ -145,6 +148,7 @@ int main(string[] args)
 
 	/* Parse FASTA file */
 	FastaRecords = parseFasta(args[1]);
+
 	/* Print or write output */
 	if (fileOut == "")
 		printOut(FastaRecords, searchReg);
